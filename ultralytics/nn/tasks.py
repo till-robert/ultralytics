@@ -19,6 +19,7 @@ from ultralytics.nn.modules import (
     C3TR,
     ELAN1,
     OBB,
+    ZAxis,
     PSA,
     SPP,
     SPPELAN,
@@ -69,6 +70,7 @@ from ultralytics.utils.loss import (
     v8ClassificationLoss,
     v8DetectionLoss,
     v8OBBLoss,
+    v8ZAxisLoss,
     v8PoseLoss,
     v8SegmentationLoss,
 )
@@ -331,7 +333,7 @@ class DetectionModel(BaseModel):
                 """Performs a forward pass through the model, handling different Detect subclass types accordingly."""
                 if self.end2end:
                     return self.forward(x)["one2many"]
-                return self.forward(x)[0] if isinstance(m, (Segment, Pose, OBB)) else self.forward(x)
+                return self.forward(x)[0] if isinstance(m, (Segment, Pose, OBB, ZAxis)) else self.forward(x)
 
             m.stride = torch.tensor([s / x.shape[-2] for x in _forward(torch.zeros(1, ch, s, s))])  # forward
             self.stride = m.stride
@@ -400,6 +402,16 @@ class OBBModel(DetectionModel):
         """Initialize the loss criterion for the model."""
         return v8OBBLoss(self)
 
+class ZAxisModel(DetectionModel):
+    """YOLOv8 Z-Axis model."""
+
+    def __init__(self, cfg="yolov8n-zaxis.yaml", ch=3, nc=None, verbose=True):
+        """Initialize YOLOv8 Z-Axis model with given config and parameters."""
+        super().__init__(cfg=cfg, ch=ch, nc=nc, verbose=verbose)
+
+    def init_criterion(self):
+        """Initialize the loss criterion for the model."""
+        return v8ZAxisLoss(self)
 
 class SegmentationModel(DetectionModel):
     """YOLOv8 segmentation model."""
@@ -1046,11 +1058,11 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
             args = [ch[f]]
         elif m is Concat:
             c2 = sum(ch[x] for x in f)
-        elif m in {Detect, WorldDetect, Segment, Pose, OBB, ImagePoolingAttn, v10Detect}:
+        elif m in {Detect, WorldDetect, Segment, Pose, OBB,ZAxis, ImagePoolingAttn, v10Detect}:
             args.append([ch[x] for x in f])
             if m is Segment:
                 args[2] = make_divisible(min(args[2], max_channels) * width, 8)
-            if m in {Detect, Segment, Pose, OBB}:
+            if m in {Detect, Segment, Pose, OBB,ZAxis}:
                 m.legacy = legacy
         elif m is RTDETRDecoder:  # special case, channels arg must be passed in index 1
             args.insert(1, [ch[x] for x in f])
@@ -1061,6 +1073,7 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
         elif m is CBFuse:
             c2 = ch[f[-1]]
         else:
+            # print(f)
             c2 = ch[f]
 
         m_ = nn.Sequential(*(m(*args) for _ in range(n))) if n > 1 else m(*args)  # module
@@ -1138,6 +1151,8 @@ def guess_model_task(model):
             return "pose"
         if m == "obb":
             return "obb"
+        if m == "zaxis":
+            return "zaxis"
 
     # Guess from model cfg
     if isinstance(model, dict):
@@ -1168,6 +1183,8 @@ def guess_model_task(model):
                 return "pose"
             elif isinstance(m, OBB):
                 return "obb"
+            elif isinstance(m, ZAxis):
+                return "zaxis"
             elif isinstance(m, (Detect, WorldDetect, v10Detect)):
                 return "detect"
 
@@ -1182,6 +1199,8 @@ def guess_model_task(model):
             return "pose"
         elif "-obb" in model.stem or "obb" in model.parts:
             return "obb"
+        elif "-zaxis" in model.stem or "zaxis" in model.parts:
+            return "zaxis"
         elif "detect" in model.parts:
             return "detect"
 

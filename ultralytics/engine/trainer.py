@@ -99,6 +99,7 @@ class BaseTrainer:
             overrides (dict, optional): Configuration overrides. Defaults to None.
         """
         self.args = get_cfg(cfg, overrides)
+        print("received cfg:",overrides)
         self.check_resume(overrides)
         self.device = select_device(self.args.device, self.args.batch)
         self.validator = None
@@ -553,6 +554,7 @@ class BaseTrainer:
                 "segment",
                 "pose",
                 "obb",
+                "zaxis",
             }:
                 data = check_det_dataset(self.args.data)
                 if "yaml_file" in data:

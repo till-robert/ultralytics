@@ -51,7 +51,7 @@ class BaseDataset(Dataset):
         img_path,
         imgsz=640,
         cache=False,
-        augment=True,
+        augment=False,
         hyp=DEFAULT_CFG,
         prefix="",
         rect=False,
@@ -138,6 +138,7 @@ class BaseDataset(Dataset):
                 bboxes = self.labels[i]["bboxes"]
                 segments = self.labels[i]["segments"]
                 keypoints = self.labels[i]["keypoints"]
+                z_positions = self.labels[i]["z"]
                 j = (cls == include_class_array).any(1)
                 self.labels[i]["cls"] = cls[j]
                 self.labels[i]["bboxes"] = bboxes[j]
@@ -145,6 +146,8 @@ class BaseDataset(Dataset):
                     self.labels[i]["segments"] = [segments[si] for si, idx in enumerate(j) if idx]
                 if keypoints is not None:
                     self.labels[i]["keypoints"] = keypoints[j]
+                if z_positions is not None:
+                    self.labels[i]["z"] = z_positions[j]
             if self.single_cls:
                 self.labels[i]["cls"][:, 0] = 0
 

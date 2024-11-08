@@ -64,7 +64,7 @@ class RTDETRTrainer(DetectionTrainer):
             img_path=img_path,
             imgsz=self.args.imgsz,
             batch_size=batch,
-            augment=mode == "train",
+            augment=False,#mode == "train",
             hyp=self.args,
             rect=False,
             cache=self.args.cache or None,

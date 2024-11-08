@@ -59,7 +59,9 @@ class YOLODataset(BaseDataset):
         self.use_segments = task == "segment"
         self.use_keypoints = task == "pose"
         self.use_obb = task == "obb"
+        self.use_zaxis = task == "zaxis"
         self.data = data
+        #print(task,data)
         assert not (self.use_segments and self.use_keypoints), "Can not use both segments and keypoints."
         super().__init__(*args, **kwargs)
 
@@ -91,13 +93,14 @@ class YOLODataset(BaseDataset):
                     self.label_files,
                     repeat(self.prefix),
                     repeat(self.use_keypoints),
+                    repeat(self.use_zaxis),
                     repeat(len(self.data["names"])),
                     repeat(nkpt),
                     repeat(ndim),
                 ),
             )
             pbar = TQDM(results, desc=desc, total=total)
-            for im_file, lb, shape, segments, keypoint, nm_f, nf_f, ne_f, nc_f, msg in pbar:
+            for im_file, lb, shape, segments, keypoint,z_position, nm_f, nf_f, ne_f, nc_f, msg in pbar:
                 nm += nm_f
                 nf += nf_f
                 ne += ne_f
@@ -111,6 +114,7 @@ class YOLODataset(BaseDataset):
                             "bboxes": lb[:, 1:],  # n, 4
                             "segments": segments,
                             "keypoints": keypoint,
+                            "z": z_position,
                             "normalized": True,
                             "bbox_format": "xywh",
                         }
@@ -158,6 +162,7 @@ class YOLODataset(BaseDataset):
 
         # Check if the dataset is all boxes or all segments
         lengths = ((len(lb["cls"]), len(lb["bboxes"]), len(lb["segments"])) for lb in labels)
+        # print([sum(x) for x in zip(*lengths)])
         len_cls, len_boxes, len_segments = (sum(x) for x in zip(*lengths))
         if len_segments and len_boxes != len_segments:
             LOGGER.warning(
@@ -186,6 +191,7 @@ class YOLODataset(BaseDataset):
                 return_mask=self.use_segments,
                 return_keypoint=self.use_keypoints,
                 return_obb=self.use_obb,
+                return_zaxis=self.use_zaxis,
                 batch_idx=True,
                 mask_ratio=hyp.mask_ratio,
                 mask_overlap=hyp.overlap_mask,
@@ -210,6 +216,7 @@ class YOLODataset(BaseDataset):
             Can also support classification and semantic segmentation by adding or removing dict keys there.
         """
         bboxes = label.pop("bboxes")
+        z_positions = label.pop("z",None)
         segments = label.pop("segments", [])
         keypoints = label.pop("keypoints", None)
         bbox_format = label.pop("bbox_format")
@@ -223,7 +230,7 @@ class YOLODataset(BaseDataset):
             segments = np.stack(resample_segments(segments, n=segment_resamples), axis=0)
         else:
             segments = np.zeros((0, segment_resamples, 2), dtype=np.float32)
-        label["instances"] = Instances(bboxes, segments, keypoints, bbox_format=bbox_format, normalized=normalized)
+        label["instances"] = Instances(bboxes, segments, keypoints,z_positions, bbox_format=bbox_format, normalized=normalized)
         return label
 
     @staticmethod
@@ -236,7 +243,7 @@ class YOLODataset(BaseDataset):
             value = values[i]
             if k == "img":
                 value = torch.stack(value, 0)
-            if k in {"masks", "keypoints", "bboxes", "cls", "segments", "obb"}:
+            if k in {"masks", "keypoints", "bboxes", "cls","z", "segments", "obb"}:
                 value = torch.cat(value, 0)
             new_batch[k] = value
         new_batch["batch_idx"] = list(new_batch["batch_idx"])
@@ -336,6 +343,7 @@ class GroundingDataset(YOLODataset):
                     "shape": (h, w),
                     "cls": lb[:, 0:1],  # n, 1
                     "bboxes": lb[:, 1:],  # n, 4
+                    "z": 0,
                     "normalized": True,
                     "bbox_format": "xywh",
                     "texts": texts,
@@ -447,7 +455,7 @@ class ClassificationDataset:
                 hflip=args.fliplr,
                 vflip=args.flipud,
                 erasing=args.erasing,
-                auto_augment=args.auto_augment,
+                auto_augment=args.auto_augment if augment else False,
                 hsv_h=args.hsv_h,
                 hsv_s=args.hsv_s,
                 hsv_v=args.hsv_v,

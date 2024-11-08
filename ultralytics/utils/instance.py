@@ -214,7 +214,7 @@ class Instances:
         This class does not perform input validation, and it assumes the inputs are well-formed.
     """
 
-    def __init__(self, bboxes, segments=None, keypoints=None, bbox_format="xywh", normalized=True) -> None:
+    def __init__(self, bboxes, segments=None, keypoints=None,z_positions=None, bbox_format="xywh", normalized=True) -> None:
         """
         Initialize the object with bounding boxes, segments, and keypoints.
 
@@ -229,6 +229,7 @@ class Instances:
         self.keypoints = keypoints
         self.normalized = normalized
         self.segments = segments
+        self.z_positions = z_positions
 
     def convert_bbox(self, format):
         """Convert bounding box format."""
@@ -303,10 +304,12 @@ class Instances:
         segments = self.segments[index] if len(self.segments) else self.segments
         keypoints = self.keypoints[index] if self.keypoints is not None else None
         bboxes = self.bboxes[index]
+        z_positions = self.z_positions[index] if self.z_positions is not None else None
         bbox_format = self._bboxes.format
         return Instances(
             bboxes=bboxes,
             segments=segments,
+            z_positions=z_positions,
             keypoints=keypoints,
             bbox_format=bbox_format,
             normalized=self.normalized,
@@ -363,13 +366,15 @@ class Instances:
                 self.keypoints = self.keypoints[good]
         return good
 
-    def update(self, bboxes, segments=None, keypoints=None):
+    def update(self, bboxes, segments=None, keypoints=None,z_positions=None):
         """Updates instance variables."""
         self._bboxes = Bboxes(bboxes, format=self._bboxes.format)
         if segments is not None:
             self.segments = segments
         if keypoints is not None:
             self.keypoints = keypoints
+        if z_positions is not None:
+            self.z_positions = z_positions
 
     def __len__(self):
         """Return the length of the instance list."""
@@ -402,13 +407,16 @@ class Instances:
             return instances_list[0]
 
         use_keypoint = instances_list[0].keypoints is not None
+        use_zaxis = instances_list[0].z_positions is not None
         bbox_format = instances_list[0]._bboxes.format
         normalized = instances_list[0].normalized
 
         cat_boxes = np.concatenate([ins.bboxes for ins in instances_list], axis=axis)
         cat_segments = np.concatenate([b.segments for b in instances_list], axis=axis)
         cat_keypoints = np.concatenate([b.keypoints for b in instances_list], axis=axis) if use_keypoint else None
-        return cls(cat_boxes, cat_segments, cat_keypoints, bbox_format, normalized)
+        cat_z_positions = np.concatenate([b.z_positions for b in instances_list], axis=axis) if use_zaxis else None
+        assert len(cat_boxes) == len(cat_z_positions), "wrong length"
+        return cls(cat_boxes, cat_segments, cat_keypoints, cat_z_positions,bbox_format, normalized)
 
     @property
     def bboxes(self):

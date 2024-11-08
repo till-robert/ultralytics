@@ -783,6 +783,8 @@ class Model(nn.Module):
         checks.check_pip_update_available()
 
         overrides = yaml_load(checks.check_yaml(kwargs["cfg"])) if kwargs.get("cfg") else self.overrides
+        #print(TASK2DATA)
+        print(self.task)
         custom = {
             # NOTE: handle the case when 'cfg' includes 'data'.
             "data": overrides.get("data") or DEFAULT_CFG_DICT["data"] or TASK2DATA[self.task],
@@ -792,8 +794,9 @@ class Model(nn.Module):
         args = {**overrides, **custom, **kwargs, "mode": "train"}  # highest priority args on the right
         if args.get("resume"):
             args["resume"] = self.ckpt_path
-
+        print("args for trainer:", args)
         self.trainer = (trainer or self._smart_load("trainer"))(overrides=args, _callbacks=self.callbacks)
+        print("ok")
         if not args.get("resume"):  # manually set model only if not resuming
             self.trainer.model = self.trainer.get_model(weights=self.model if self.ckpt else None, cfg=self.model.yaml)
             self.model = self.trainer.model
@@ -806,6 +809,7 @@ class Model(nn.Module):
             self.model, _ = attempt_load_one_weight(ckpt)
             self.overrides = self.model.args
             self.metrics = getattr(self.trainer.validator, "metrics", None)  # TODO: no metrics returned by DDP
+        # print(self.metrics)
         return self.metrics
 
     def tune(
@@ -1092,9 +1096,10 @@ class Model(nn.Module):
         except Exception as e:
             name = self.__class__.__name__
             mode = inspect.stack()[1][3]  # get the function name.
-            raise NotImplementedError(
-                emojis(f"WARNING ⚠️ '{name}' model does not support '{mode}' mode for '{self.task}' task yet.")
-            ) from e
+            # raise NotImplementedError(
+            #     emojis(f"WARNING ⚠️ '{name}' model does not support '{mode}' mode for '{self.task}' task yet.")
+            # ) from e
+            raise e
 
     @property
     def task_map(self) -> dict:

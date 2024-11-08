@@ -1187,7 +1187,7 @@ class RandomPerspective:
 
         This method performs a series of transformations including rotation, translation, scaling, shearing,
         and perspective distortion on the input image and adjusts the corresponding bounding boxes, segments,
-        and keypoints accordingly.
+        and z_positions accordingly.
 
         Args:
             labels (Dict): A dictionary containing image data and annotations.
@@ -1232,18 +1232,19 @@ class RandomPerspective:
         # M is affine matrix
         # Scale for func:`box_candidates`
         img, M, scale = self.affine_transform(img, border)
-
+        # print(bboxes.shape)
         bboxes = self.apply_bboxes(instances.bboxes, M)
 
         segments = instances.segments
         keypoints = instances.keypoints
+        z_positions = instances.z_positions
         # Update bboxes if there are segments.
         if len(segments):
             bboxes, segments = self.apply_segments(segments, M)
 
         if keypoints is not None:
             keypoints = self.apply_keypoints(keypoints, M)
-        new_instances = Instances(bboxes, segments, keypoints, bbox_format="xyxy", normalized=False)
+        new_instances = Instances(bboxes, segments, keypoints, z_positions,bbox_format="xyxy", normalized=False)
         # Clip
         new_instances.clip(*self.size)
 
@@ -1954,6 +1955,7 @@ class Format:
         return_mask=False,
         return_keypoint=False,
         return_obb=False,
+        return_zaxis=False,
         mask_ratio=4,
         mask_overlap=True,
         batch_idx=True,
@@ -1997,6 +1999,7 @@ class Format:
         self.return_mask = return_mask  # set False when training detection only
         self.return_keypoint = return_keypoint
         self.return_obb = return_obb
+        self.return_zaxis = return_zaxis
         self.mask_ratio = mask_ratio
         self.mask_overlap = mask_overlap
         self.batch_idx = batch_idx  # keep the batch indexes
@@ -2034,6 +2037,7 @@ class Format:
         img = labels.pop("img")
         h, w = img.shape[:2]
         cls = labels.pop("cls")
+        #z_position = labels.pop("z")
         instances = labels.pop("instances")
         instances.convert_bbox(format=self.bbox_format)
         instances.denormalize(w, h)
@@ -2050,6 +2054,7 @@ class Format:
             labels["masks"] = masks
         labels["img"] = self._format_img(img)
         labels["cls"] = torch.from_numpy(cls) if nl else torch.zeros(nl)
+        #labels["z_pos"] = torch.from_numpy(z_position) if nl else torch.zeros(nl)
         labels["bboxes"] = torch.from_numpy(instances.bboxes) if nl else torch.zeros((nl, 4))
         if self.return_keypoint:
             labels["keypoints"] = torch.from_numpy(instances.keypoints)
@@ -2060,6 +2065,8 @@ class Format:
             labels["bboxes"] = (
                 xyxyxyxy2xywhr(torch.from_numpy(instances.segments)) if len(instances.segments) else torch.zeros((0, 5))
             )
+        if self.return_zaxis:
+            labels["z"] = torch.from_numpy(instances.z_positions)
         # NOTE: need to normalize obb in xywhr format for width-height consistency
         if self.normalize:
             labels["bboxes"][:, [0, 2]] /= w

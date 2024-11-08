@@ -228,7 +228,7 @@ class Results(SimpleClass):
     """
 
     def __init__(
-        self, orig_img, path, names, boxes=None, masks=None, probs=None, keypoints=None, obb=None, speed=None
+        self, orig_img, path, names, boxes=None, masks=None, probs=None, keypoints=None, obb=None, zaxis=None, speed=None
     ) -> None:
         """
         Initialize the Results class for storing and manipulating inference results.
@@ -242,6 +242,7 @@ class Results(SimpleClass):
             probs (torch.Tensor | None): A 1D tensor of probabilities of each class for classification task.
             keypoints (torch.Tensor | None): A 2D tensor of keypoint coordinates for each detection.
             obb (torch.Tensor | None): A 2D tensor of oriented bounding box coordinates for each detection.
+            zaxis (torch.Tensor | None): A 1D tensor of z-positions for each detection.
             speed (Dict | None): A dictionary containing preprocess, inference, and postprocess speeds (ms/image).
 
         Examples:
@@ -264,11 +265,12 @@ class Results(SimpleClass):
         self.probs = Probs(probs) if probs is not None else None
         self.keypoints = Keypoints(keypoints, self.orig_shape) if keypoints is not None else None
         self.obb = OBB(obb, self.orig_shape) if obb is not None else None
+        self.zaxis = ZAxis(zaxis, self.orig_shape) if zaxis is not None else None
         self.speed = speed if speed is not None else {"preprocess": None, "inference": None, "postprocess": None}
         self.names = names
         self.path = path
         self.save_dir = None
-        self._keys = "boxes", "masks", "probs", "keypoints", "obb"
+        self._keys = "boxes", "masks", "probs", "keypoints", "obb","zaxis"
 
     def __getitem__(self, idx):
         """
@@ -1739,3 +1741,5 @@ class OBB(BaseTensor):
             if isinstance(x, torch.Tensor)
             else np.stack([x.min(1), y.min(1), x.max(1), y.max(1)], -1)
         )
+class ZAxis(BaseTensor):
+    pass
