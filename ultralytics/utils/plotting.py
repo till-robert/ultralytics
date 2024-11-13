@@ -976,6 +976,7 @@ def plot_images(
     max_subplots: int = 16,
     save: bool = True,
     conf_thres: float = 0.25,
+    z: Union[torch.Tensor, np.ndarray] = None,
 ) -> Optional[np.ndarray]:
     """
     Plot image grid with labels, bounding boxes, masks, and keypoints.
@@ -1016,6 +1017,10 @@ def plot_images(
         kpts = kpts.cpu().numpy()
     if isinstance(batch_idx, torch.Tensor):
         batch_idx = batch_idx.cpu().numpy()
+    if isinstance(z, torch.Tensor):
+        z = z.cpu().numpy()
+    
+    
 
     bs, _, h, w = images.shape  # batch size, _, height, width
     bs = min(bs, max_subplots)  # limit plot images
@@ -1071,6 +1076,12 @@ def plot_images(
                         annotator.box_label(box, label, color=color, rotated=is_obb)
 
             elif len(classes):
+                if z: 
+                    for c, z_val in zip(classes, z):
+                        color = colors(c)
+                        c = names.get(c, c) if names else c
+                        annotator.text((x, y), f"{c}, z = {z_val}", txt_color=color, box_style=True)
+
                 for c in classes:
                     color = colors(c)
                     c = names.get(c, c) if names else c
@@ -1298,6 +1309,15 @@ def output_to_rotated_target(output, max_det=300):
     targets = torch.cat(targets, 0).numpy()
     return targets[:, 0], targets[:, 1], targets[:, 2:-1], targets[:, -1]
 
+def output_to_z_target(output, max_det=300):
+    """Convert model output to target format [batch_id, class_id, x, y, w, h,z, conf] for plotting."""
+    targets = []
+    for i, o in enumerate(output):
+        box, conf, cls,z = o[:max_det].cpu().split((4, 1, 1,1), 1)
+        j = torch.full((conf.shape[0], 1), i)
+        targets.append(torch.cat((j, cls, ops.xyxy2xywh(box),z, conf), 1))
+    targets = torch.cat(targets, 0).numpy()
+    return targets[:, 0], targets[:, 1], targets[:, 2:5],targets[:,5], targets[:, -1]
 
 def feature_visualization(x, module_type, stage, n=32, save_dir=Path("runs/detect/exp")):
     """
