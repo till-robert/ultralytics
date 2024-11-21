@@ -1,0 +1,2 @@
+{names: [Spot, Ripple], nc: 2, test: /Users/till/git/ultralytics/data_gen/Dataset/test,
+  train: /Users/till/git/ultralytics/data_gen/Dataset/train, val: /Users/till/git/ultralytics/data_gen/Dataset/val}

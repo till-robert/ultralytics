@@ -172,3 +172,4 @@ pnnx*
 calibration_*.npy
 *.npy
 *.mat
+data_gen/Dataset/*

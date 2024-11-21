@@ -7,21 +7,26 @@ from skimage.draw import rectangle
 from scipy import ndimage
 from scipy.special import factorial as fac
 from scipy.interpolate import interp1d
-def genRipple(d=100,delta = 30,lambd = 1,A = 0.242,n_max=80):
-    kappa=np.pi*A**2*(delta/lambd)
-    d = np.round(d/2).astype(int)
-    n = np.arange(0,n_max)
-    k= np.arange(0,n_max)
-    k1= np.arange(1,n_max)
-    rhos = np.linspace(0,5,d)
-    h = [ np.sum((-1)**n * (np.pi*rho)**(2*n)/fac(n)**2 * np.sum((-1)**k * kappa**(2*k)/((n + 2*k + 1)*fac(2*k))))**2 + np.sum((-1)**n *(np.pi*rho)**(2*n)/fac(n)**2 * np.sum((-1)**k1 *kappa**(2*k1 - 1)/((np.atleast_2d(n).T + 2*k1)*fac(2*k1 - 1)), axis=1))**2 for rho in rhos]
-    interp = interp1d(rhos, h,fill_value=0,bounds_error=False)
-    profile2D = np.zeros([2*d,2*d])
-    for i,y in enumerate(np.linspace(-5,5,2*d)):
-        for j,x in enumerate(np.linspace(-5,5,2*d)):
-            rho = np.sqrt(x**2+y**2)
-            profile2D[i,j] = interp(rho)
-    return profile2D
+from skimage.transform import resize
+from numba import njit
+import h5py
+
+# def genRipple(d=100,delta = 30,lambd = 1,A = 0.242,n_max=80):
+#     kappa=np.pi*A**2*(delta/lambd)
+#     d = np.round(d/2).astype(int)
+#     n = np.arange(0,n_max)
+#     k= np.arange(0,n_max)
+#     k1= np.arange(1,n_max)
+#     rhos = np.linspace(0,5,d)
+#     h = [ np.sum((-1)**n * (np.pi*rho)**(2*n)/fac(n)**2 * np.sum((-1)**k * kappa**(2*k)/((n + 2*k + 1)*fac(2*k))))**2 + np.sum((-1)**n *(np.pi*rho)**(2*n)/fac(n)**2 * np.sum((-1)**k1 *kappa**(2*k1 - 1)/((np.atleast_2d(n).T + 2*k1)*fac(2*k1 - 1)), axis=1))**2 for rho in rhos]
+#     interp = interp1d(rhos, h,fill_value=0,bounds_error=False)
+#     profile2D = np.zeros([2*d,2*d])
+#     for i,y in enumerate(np.linspace(-5,5,2*d)):
+#         for j,x in enumerate(np.linspace(-5,5,2*d)):
+#             rho = np.sqrt(x**2+y**2)
+#             profile2D[i,j] = interp(rho)
+#     return profile2D
+
 class Object:
     def __init__(self, x, y, label, parameters,theta=None): # , theta
         self.x = x
@@ -29,14 +34,40 @@ class Object:
         self.theta = theta 
         self.label = label
         self.parameters = parameters
+class Ripple(Object):
+    def __init__(self, x, y, label, parameters,theta=None): # , theta
+        super().__init__(x, y, label, parameters,theta)
+        self.z = self.parameters["z"]
 
+#import z stack
+z_stack, masks = np.load("z_stack_0.5.npy"),np.load("masks_0.5.npy")
+# allbeads_refstack = h5py.File("FinalRefstack_allbeads_latdrift_corr_min20_temp.mat")["Refstack"]
 
-        
+resize_factor = 2
+# allbeads_refstack = np.array([resize(ref,(ref.shape[0]//resize_factor,ref.shape[1]//resize_factor)) for ref in allbeads_refstack])
+z_stack = resize(z_stack,(z_stack.shape[0],z_stack.shape[1]//resize_factor))
+print(masks.shape)
+masks = np.array([resize(mask,(mask.shape[0]//resize_factor,mask.shape[1]//resize_factor)) for mask in masks])
+
+#normalize images
+# masks=masks/masks.sum(axis=0)
+masks=np.divide(masks,masks.sum(axis=0),where=masks!=0) #normalize ignoring zeros
+z_stack = z_stack.astype(np.float32)-np.median(z_stack) #cast to float, remove background
+z_stack /= max(np.max(z_stack),-np.min(z_stack)) #scale all entries by global max to lie within (-1,1)
+# allbeads_refstack = allbeads_refstack.astype(np.float32)-np.median(allbeads_refstack) #cast to float, remove background
+# allbeads_refstack /= max(np.max(allbeads_refstack),-np.min(allbeads_refstack)) #scale all entries by global max to lie within (-1,1)
+genRipple = lambda z: np.sum(np.array([(masks[i]*z_stack[z,i]) for i in range(len(z_stack[0]))]),axis=0)
+# genRipple = lambda z: allbeads_refstack[z]
+
 def generateImage(objects, image_size, snr_range, i_range=[1,1]):
     image = np.zeros([image_size, image_size])
     bboxes = []
     labels = []
+    pars = []
     X, Y = np.meshgrid(np.arange(0, image_size), np.arange(0, image_size))
+
+
+
     for obj in objects:
         x = obj.x
         y = obj.y
@@ -53,30 +84,31 @@ def generateImage(objects, image_size, snr_range, i_range=[1,1]):
         if obj.label == 'Ripple':
             i_list, s_list,z_list = np.array(obj.parameters)
             i = np.random.uniform(i_range[0], i_range[1]) if i_list[0] == 0 else i_list[0]
-            s = int(np.random.uniform(s_list[0], s_list[1])) if len(s_list) > 1 else s_list[0] # sigma = np.random.uniform(1.5, 3)
+            # s = int(np.random.uniform(s_list[0], s_list[1])) if len(s_list) > 1 else s_list[0] # sigma = np.random.uniform(1.5, 3)
             z = int(np.random.uniform(z_list[0], z_list[1])) if len(z_list) > 1 else z_list[0]
-            ripple = genRipple(s,z)
-            ripple/=np.max(ripple)
-            y1,y2,x1,x2 = np.round(y-s/2).astype(int),np.round(y+s/2).astype(int),np.round(x-s/2).astype(int),np.round(x+s/2).astype(int)
-            i1,i2,j1,j2=0,s,0,s
+            ripple = genRipple(z)
+            # ripple/=np.max(ripple)
+            y1,y2,x1,x2 = np.round(y-256/resize_factor).astype(int),np.round(y+256/resize_factor).astype(int),np.round(x-256/resize_factor).astype(int),np.round(x+256/resize_factor).astype(int)
+            i1,i2,j1,j2=0,512//resize_factor,0,512//resize_factor
             if(y1<0):
                 i1 = -y1
                 y1=0
-            if(y2>=image_size):
+            if(y2>image_size):
                 i2 = image_size-y2
                 y2=image_size
             if(x1<0):
                 j1 = -x1
                 x1=0
-            if(x2>=image_size):
+            if(x2>image_size):
                 j2 = image_size-x2
                 x2=image_size
             # print(image[y1:y2,x1:x2].shape, ripple[i1:i2,j1:j2].shape)
             image[y1:y2,x1:x2] += i*ripple[i1:i2,j1:j2]
-            bx = 0.05*s*np.sqrt(np.abs(z))
-            by = 0.05*s*np.sqrt(np.abs(z))
+            bx = by = (np.abs(z-761)*0.21+55)/(2*resize_factor)
+
             bboxes.append(np.array([[x-bx,y-by],[x+bx,y+by]]))
-            labels.append(f"{obj.label}, z = {z}")
+            labels.append(f"{obj.label}")
+            pars.append(z)
 
         if obj.label == 'Ring':                
             i_list, r_list, s_list = np.array(obj.parameters)
@@ -146,16 +178,20 @@ def generateImage(objects, image_size, snr_range, i_range=[1,1]):
             bboxes.append(np.array([[x-bx,y-by],[x+bx,y+by]]))
             labels.append(obj.label)
 
-    # Set the SNR  
-    image = image/image.max()
-    noise = np.abs(np.random.randn(image_size, image_size))
-    noise = noise/np.var(noise)
+    # Set the SNR 
+    # image -= image.min()
+    image = image/(max(image.max(),-image.min()))
+    noise = np.random.randn(image_size, image_size)
+    # noise = noise/np.var(noise)
     if isinstance(snr_range, list):
         snr = np.random.uniform(snr_range[0], snr_range[1])             
     else:
         snr = snr_range
-    image = snr*image + noise                    
-    return (bboxes, labels, image) 
+    image = image + noise/snr
+    image= (image+1)/2
+    # image = image/(image.max())
+
+    return (bboxes, labels, pars, image) 
 
 def getRandom(n_list, image_size, distance, offset, label_list, parameters_list):
     '''

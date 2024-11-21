@@ -1,0 +1,10 @@
+
+path: /Users/till/git/ultralytics/data_gen/Dataset/ # dataset root dir
+train: images/train # train images
+val: images/val # val images
+test: images/test # test images
+
+names:
+  0: glass bead
+
+

@@ -8,5 +8,5 @@ except:
 model = YOLO("yolo11n-zaxis.yaml")
 print(model.model.model)
 print("loaded")
-results = model.train(data="datasets/dota8/data.yaml", epochs=10, imgsz=640,)
+results = model.train(data="data_gen/data.yaml", epochs=100, imgsz=512,)
 print("test")
