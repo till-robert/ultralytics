@@ -1,5 +1,5 @@
 
-path: /home/jupyter-till/git/ultralytics/data_gen/Dataset/ # dataset root dir
+path: /home/jupyter-till/git/ultralytics/data_gen/dataset_2/ # dataset root dir
 train: images/train # train images
 val: images/val # val images
 test: images/test # test images

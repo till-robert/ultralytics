@@ -173,3 +173,6 @@ calibration_*.npy
 *.npy
 *.mat
 data_gen/Dataset/*
+data_gen/dataset_2/*
+runs_old/*
+results_image*.jpg

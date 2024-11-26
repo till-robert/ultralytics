@@ -46,37 +46,37 @@ class ZAxisValidator(DetectionValidator):
             multi_label=True,
             agnostic=self.args.single_cls or self.args.agnostic_nms,
             max_det=self.args.max_det,
-            rotated=True,
+            rotated=False,
         )
 
-    def _process_batch(self, detections, gt_bboxes, gt_cls):
-        """
-        Perform computation of the correct prediction matrix for a batch of detections and ground truth bounding boxes.
+    # def _process_batch(self, detections, gt_bboxes, gt_cls):
+    #     """
+    #     Perform computation of the correct prediction matrix for a batch of detections and ground truth bounding boxes.
 
-        Args:
-            detections (torch.Tensor): A tensor of shape (N, 7) representing the detected bounding boxes and associated
-                data. Each detection is represented as (x1, y1, x2, y2, conf, class, angle).
-            gt_bboxes (torch.Tensor): A tensor of shape (M, 5) representing the ground truth bounding boxes. Each box is
-                represented as (x1, y1, x2, y2, angle).
-            gt_cls (torch.Tensor): A tensor of shape (M,) representing class labels for the ground truth bounding boxes.
+    #     Args:
+    #         detections (torch.Tensor): A tensor of shape (N, 7) representing the detected bounding boxes and associated
+    #             data. Each detection is represented as (x1, y1, x2, y2, conf, class, angle).
+    #         gt_bboxes (torch.Tensor): A tensor of shape (M, 5) representing the ground truth bounding boxes. Each box is
+    #             represented as (x1, y1, x2, y2, angle).
+    #         gt_cls (torch.Tensor): A tensor of shape (M,) representing class labels for the ground truth bounding boxes.
 
-        Returns:
-            (torch.Tensor): The correct prediction matrix with shape (N, 10), which includes 10 IoU (Intersection over
-                Union) levels for each detection, indicating the accuracy of predictions compared to the ground truth.
+    #     Returns:
+    #         (torch.Tensor): The correct prediction matrix with shape (N, 10), which includes 10 IoU (Intersection over
+    #             Union) levels for each detection, indicating the accuracy of predictions compared to the ground truth.
 
-        Example:
-            ```python
-            detections = torch.rand(100, 7)  # 100 sample detections
-            gt_bboxes = torch.rand(50, 5)  # 50 sample ground truth boxes
-            gt_cls = torch.randint(0, 5, (50,))  # 50 ground truth class labels
-            correct_matrix = OBBValidator._process_batch(detections, gt_bboxes, gt_cls)
-            ```
+    #     Example:
+    #         ```python
+    #         detections = torch.rand(100, 7)  # 100 sample detections
+    #         gt_bboxes = torch.rand(50, 5)  # 50 sample ground truth boxes
+    #         gt_cls = torch.randint(0, 5, (50,))  # 50 ground truth class labels
+    #         correct_matrix = OBBValidator._process_batch(detections, gt_bboxes, gt_cls)
+    #         ```
 
-        Note:
-            This method relies on `batch_probiou` to calculate IoU between detections and ground truth bounding boxes.
-        """
-        iou = batch_probiou(gt_bboxes, torch.cat([detections[:, :4], detections[:, -1:]], dim=-1))
-        return self.match_predictions(detections[:, 5], gt_cls, iou)
+    #     Note:
+    #         This method relies on `batch_probiou` to calculate IoU between detections and ground truth bounding boxes.
+    #     """
+    #     iou = batch_probiou(gt_bboxes, torch.cat([detections[:, :4], detections[:, -1:]], dim=-1))
+    #     return self.match_predictions(detections[:, 5], gt_cls, iou)
 
     def _prepare_batch(self, si, batch):
         """Prepares and returns a batch for OBB validation."""
@@ -112,6 +112,37 @@ class ZAxisValidator(DetectionValidator):
             on_plot=self.on_plot,
             z=z
         )  # pred
+    def plot_val_samples(self, batch, ni):
+        """Plot validation image samples."""
+        plot_images(
+            batch["img"],
+            batch["batch_idx"],
+            batch["cls"].squeeze(-1),
+            batch["bboxes"],
+            paths=batch["im_file"],
+            fname=self.save_dir / f"val_batch{ni}_labels.jpg",
+            names=self.names,
+            on_plot=self.on_plot,
+            z=batch["z"]
+
+        )
 
 
 
+    def preprocess(self, batch):
+        """Preprocesses batch of images for YOLO training."""
+        batch["img"] = batch["img"].to(self.device, non_blocking=True)
+        batch["img"] = (batch["img"].half() if self.args.half else batch["img"].float()) / 255
+        for k in ["batch_idx", "cls", "bboxes","z"]:
+            batch[k] = batch[k].to(self.device)
+
+        if self.args.save_hybrid:
+            height, width = batch["img"].shape[2:]
+            nb = len(batch["img"])
+            bboxes = batch["bboxes"] * torch.tensor((width, height, width, height), device=self.device)
+            self.lb = [
+                torch.cat([batch["cls"][batch["batch_idx"] == i], bboxes[batch["batch_idx"] == i]], dim=-1)
+                for i in range(nb)
+            ]
+
+        return batch

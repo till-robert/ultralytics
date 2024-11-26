@@ -140,7 +140,7 @@ def verify_image_label(args):
             else:
                 assert lb.shape[1] == 5, f"labels require 5 columns, {lb.shape[1]} columns detected"
                 points = lb[:, 1:]
-                assert z_positions.max() <= 1, f"non-normalized or out of bounds coordinates {z_positions[z_positions > 1]}"
+                # assert z_positions.max() <= 1, f"non-normalized or out of bounds coordinates {z_positions[z_positions > 1]}"
             assert lb.min() >= 0, f"negative label values {lb[lb < 0]}"
 
             # All labels

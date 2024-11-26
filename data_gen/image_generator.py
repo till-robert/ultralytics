@@ -8,7 +8,7 @@ from scipy import ndimage
 from scipy.special import factorial as fac
 from scipy.interpolate import interp1d
 from skimage.transform import resize
-from numba import njit
+# from numba import njit
 import h5py
 
 # def genRipple(d=100,delta = 30,lambd = 1,A = 0.242,n_max=80):
@@ -59,7 +59,7 @@ z_stack /= max(np.max(z_stack),-np.min(z_stack)) #scale all entries by global ma
 genRipple = lambda z: np.sum(np.array([(masks[i]*z_stack[z,i]) for i in range(len(z_stack[0]))]),axis=0)
 # genRipple = lambda z: allbeads_refstack[z]
 
-def generateImage(objects, image_size, snr_range, i_range=[1,1]):
+def generateImage(objects, image_size, snr_range, i_range=[1,1],rng=np.random.default_rng()):
     image = np.zeros([image_size, image_size])
     bboxes = []
     labels = []
@@ -71,11 +71,11 @@ def generateImage(objects, image_size, snr_range, i_range=[1,1]):
     for obj in objects:
         x = obj.x
         y = obj.y
-        #a = np.random.uniform(i_range[0], i_range[1])
+        #a = rng.uniform(i_range[0], i_range[1])
         if obj.label == 'Spot':
             i_list, s_list = np.array(obj.parameters)
-            i = np.random.uniform(i_range[0], i_range[1]) if i_list[0] == 0 else i_list[0]
-            s = np.random.uniform(s_list[0], s_list[1]) if len(s_list) > 1 else s_list[0] # sigma = np.random.uniform(1.5, 3)
+            i = rng.uniform(i_range[0], i_range[1]) if i_list[0] == 0 else i_list[0]
+            s = rng.uniform(s_list[0], s_list[1]) if len(s_list) > 1 else s_list[0] # sigma = rng.uniform(1.5, 3)
             image = image + i*np.exp(-((X-x)**2+(Y-y)**2)/(2*s**2))
             bx = 2*s
             by = 2*s
@@ -83,9 +83,9 @@ def generateImage(objects, image_size, snr_range, i_range=[1,1]):
             labels.append(obj.label)
         if obj.label == 'Ripple':
             i_list, s_list,z_list = np.array(obj.parameters)
-            i = np.random.uniform(i_range[0], i_range[1]) if i_list[0] == 0 else i_list[0]
-            # s = int(np.random.uniform(s_list[0], s_list[1])) if len(s_list) > 1 else s_list[0] # sigma = np.random.uniform(1.5, 3)
-            z = int(np.random.uniform(z_list[0], z_list[1])) if len(z_list) > 1 else z_list[0]
+            i = rng.uniform(i_range[0], i_range[1]) if i_list[0] == 0 else i_list[0]
+            # s = int(rng.uniform(s_list[0], s_list[1])) if len(s_list) > 1 else s_list[0] # sigma = rng.uniform(1.5, 3)
+            z = int(rng.uniform(z_list[0], z_list[1])) if len(z_list) > 1 else z_list[0]
             ripple = genRipple(z)
             # ripple/=np.max(ripple)
             y1,y2,x1,x2 = np.round(y-256/resize_factor).astype(int),np.round(y+256/resize_factor).astype(int),np.round(x-256/resize_factor).astype(int),np.round(x+256/resize_factor).astype(int)
@@ -112,9 +112,9 @@ def generateImage(objects, image_size, snr_range, i_range=[1,1]):
 
         if obj.label == 'Ring':                
             i_list, r_list, s_list = np.array(obj.parameters)
-            i = np.random.uniform(i_range[0], i_range[1]) if i_list[0] == 0 else i_list[0]
-            r = np.random.uniform(r_list[0], r_list[1]) if len(r_list) > 1 else r_list[0] # r = np.random.uniform(7, 9)
-            s = np.random.uniform(s_list[0], s_list[1]) if len(s_list) > 1 else s_list[0]      
+            i = rng.uniform(i_range[0], i_range[1]) if i_list[0] == 0 else i_list[0]
+            r = rng.uniform(r_list[0], r_list[1]) if len(r_list) > 1 else r_list[0] # r = rng.uniform(7, 9)
+            s = rng.uniform(s_list[0], s_list[1]) if len(s_list) > 1 else s_list[0]      
             image = image + i*np.exp(-(np.sqrt((X-x)**2+(Y-y)**2)-r)**2/(2*s**2))
             bx = 2*s + r
             by = 2*s + r
@@ -122,11 +122,11 @@ def generateImage(objects, image_size, snr_range, i_range=[1,1]):
             labels.append(obj.label)
         if obj.label == 'Janus':
             i_list, r_list, s_list = np.array(obj.parameters)
-            i = np.random.uniform(i_range[0], i_range[1]) if i_list[0] == 0 else i_list[0]
-            r = np.random.uniform(r_list[0], r_list[1]) if len(r_list) > 1 else r_list[0] # r = np.random.uniform(7, 9)
-            s = np.random.uniform(s_list[0], s_list[1]) if len(s_list) > 1 else s_list[0]
+            i = rng.uniform(i_range[0], i_range[1]) if i_list[0] == 0 else i_list[0]
+            r = rng.uniform(r_list[0], r_list[1]) if len(r_list) > 1 else r_list[0] # r = rng.uniform(7, 9)
+            s = rng.uniform(s_list[0], s_list[1]) if len(s_list) > 1 else s_list[0]
             if obj.theta is None:
-                phi = np.random.random()*2*pi
+                phi = rng.random()*2*pi
             else:
                 phi = obj.theta
             Xr = x + np.cos(phi)*(X-x) - np.sin(phi)*(Y-y)
@@ -139,11 +139,11 @@ def generateImage(objects, image_size, snr_range, i_range=[1,1]):
             labels.append(obj.label)
         if obj.label == 'Ellipse':
             i_list, sx_list, sy_list = np.array(obj.parameters)
-            i = np.random.uniform(i_range[0], i_range[1]) if i_list[0] == 0 else i_list[0]
-            sx = np.random.uniform(sx_list[0], sx_list[1]) if len(sx_list) > 1 else sx_list[0] # r = np.random.uniform(7, 9)
-            sy = np.random.uniform(sy_list[0], sy_list[1]) if len(sy_list) > 1 else sy_list[0]
+            i = rng.uniform(i_range[0], i_range[1]) if i_list[0] == 0 else i_list[0]
+            sx = rng.uniform(sx_list[0], sx_list[1]) if len(sx_list) > 1 else sx_list[0] # r = rng.uniform(7, 9)
+            sy = rng.uniform(sy_list[0], sy_list[1]) if len(sy_list) > 1 else sy_list[0]
             if obj.theta is None:
-                theta = np.random.uniform(0, pi) 
+                theta = rng.uniform(0, pi) 
             else:
                 theta = obj.theta
             a = np.cos(theta)**2/(2*sx**2) + np.sin(theta)**2/(2*sy**2)
@@ -156,12 +156,12 @@ def generateImage(objects, image_size, snr_range, i_range=[1,1]):
             labels.append(obj.label)
         if obj.label == 'Rod':
             i_list, l_list, w_list, s_list = np.array(obj.parameters)
-            i = np.random.uniform(i_range[0], i_range[1]) if i_list[0] == 0 else i_list[0]
-            l = np.random.uniform(l_list[0], l_list[1]) if len(l_list) > 1 else l_list[0] # r = np.random.uniform(7, 9)
-            w = np.random.uniform(w_list[0], w_list[1]) if len(w_list) > 1 else w_list[0] 
-            s = np.random.uniform(s_list[0], s_list[1]) if len(s_list) > 1 else s_list[0]
+            i = rng.uniform(i_range[0], i_range[1]) if i_list[0] == 0 else i_list[0]
+            l = rng.uniform(l_list[0], l_list[1]) if len(l_list) > 1 else l_list[0] # r = rng.uniform(7, 9)
+            w = rng.uniform(w_list[0], w_list[1]) if len(w_list) > 1 else w_list[0] 
+            s = rng.uniform(s_list[0], s_list[1]) if len(s_list) > 1 else s_list[0]
             if obj.theta is None:
-                theta = np.random.uniform(0, 2*pi) 
+                theta = rng.uniform(0, 2*pi) 
             else:
                 theta = obj.theta
             im = np.zeros([image_size, image_size])
@@ -181,10 +181,10 @@ def generateImage(objects, image_size, snr_range, i_range=[1,1]):
     # Set the SNR 
     # image -= image.min()
     image = image/(max(image.max(),-image.min()))
-    noise = np.random.randn(image_size, image_size)
+    noise = rng.normal(0,1,(image_size, image_size))
     # noise = noise/np.var(noise)
     if isinstance(snr_range, list):
-        snr = np.random.uniform(snr_range[0], snr_range[1])             
+        snr = rng.uniform(snr_range[0], snr_range[1])             
     else:
         snr = snr_range
     image = image + noise/snr
@@ -193,7 +193,7 @@ def generateImage(objects, image_size, snr_range, i_range=[1,1]):
 
     return (bboxes, labels, pars, image) 
 
-def getRandom(n_list, image_size, distance, offset, label_list, parameters_list):
+def getRandom(n_list, image_size, distance, offset, label_list, parameters_list,rng):
     '''
     :n_list: int list, # of particles of each class
     :image_size: int, shape of output image
@@ -212,7 +212,7 @@ def getRandom(n_list, image_size, distance, offset, label_list, parameters_list)
     points = []
     while len(points) < np.sum(n_list):
         # Generate a random point
-        new_point = np.random.random(2)*(image_size - 2*offset) + offset
+        new_point = rng.random(2)*(image_size - 2*offset) + offset
         
         # Check if the new point meets the minimum distance requirement
         if all(np.linalg.norm(np.array(new_point) - np.array(p)) >= distance for p in points):

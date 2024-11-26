@@ -373,7 +373,7 @@ class Annotator:
                 cv2.rectangle(self.im, p1, p2, color, -1, cv2.LINE_AA)  # filled
                 cv2.putText(
                     self.im,
-                    label,
+                    label + "",
                     (p1[0], p1[1] - 2 if outside else p1[1] + h - 1),
                     0,
                     self.sf,
@@ -1073,7 +1073,7 @@ def plot_images(
                     c = names.get(c, c) if names else c
                     if labels or conf[j] > conf_thres:
                         label = f"{c}" if labels else f"{c} {conf[j]:.1f}"
-                        annotator.box_label(box, label, color=color, rotated=is_obb)
+                        annotator.box_label(box, f"cls:{classes[j]}, z={z[j]:.4f}" if z is not None else label, color=color, rotated=is_obb)
 
             elif len(classes):
                 if z: 
@@ -1317,7 +1317,7 @@ def output_to_z_target(output, max_det=300):
         j = torch.full((conf.shape[0], 1), i)
         targets.append(torch.cat((j, cls, ops.xyxy2xywh(box),z, conf), 1))
     targets = torch.cat(targets, 0).numpy()
-    return targets[:, 0], targets[:, 1], targets[:, 2:5],targets[:,5], targets[:, -1]
+    return targets[:, 0], targets[:, 1], targets[:, 2:6],targets[:,6], targets[:, -1]
 
 def feature_visualization(x, module_type, stage, n=32, save_dir=Path("runs/detect/exp")):
     """
