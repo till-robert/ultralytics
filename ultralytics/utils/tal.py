@@ -348,7 +348,6 @@ class ZAxisTaskAlignedAssigner(TaskAlignedAssigner):
         batch_ind = torch.arange(end=self.bs, dtype=torch.int64, device=gt_labels.device)[..., None]
         target_gt_idx = target_gt_idx + batch_ind * self.n_max_boxes  # (b, h*w)
         target_labels = gt_labels.long().flatten()[target_gt_idx]  # (b, h*w)
-        z_num = gt_z.shape[-1]
         target_z = gt_z.flatten()[target_gt_idx].view(self.bs,-1,1)  # (b, h*w)
         # Assigned target boxes, (b, max_num_obj, 4) -> (b, h*w, 4)
         target_bboxes = gt_bboxes.view(-1, gt_bboxes.shape[-1])[target_gt_idx]
@@ -369,6 +368,7 @@ class ZAxisTaskAlignedAssigner(TaskAlignedAssigner):
         target_scores = torch.where(fg_scores_mask > 0, target_scores, 0)
 
         return target_labels, target_bboxes, target_scores, target_z
+    
     
 class RotatedTaskAlignedAssigner(TaskAlignedAssigner):
     """Assigns ground-truth objects to rotated bounding boxes using a task-aligned metric."""

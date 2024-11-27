@@ -502,7 +502,11 @@ class Results(SimpleClass):
 
         names = self.names
         is_obb = self.obb is not None
+        is_zaxis = self.zaxis is not None
         pred_boxes, show_boxes = self.obb if is_obb else self.boxes, boxes
+        if(is_zaxis):
+            pred_boxes = Boxes(self.zaxis.data[:,:-1],self.orig_shape)
+            z = self.zaxis.data[:,-1]
         pred_masks, show_masks = self.masks, masks
         pred_probs, show_probs = self.probs, probs
         annotator = Annotator(
@@ -539,7 +543,7 @@ class Results(SimpleClass):
             for i, d in enumerate(reversed(pred_boxes)):
                 c, conf, id = int(d.cls), float(d.conf) if conf else None, None if d.id is None else int(d.id.item())
                 name = ("" if id is None else f"id:{id} ") + names[c]
-                label = (f"{name} {conf:.2f}" if conf else name) if labels else None
+                label = ((f"{name} {conf:.2f}"if conf else name)+(f", z={z[i]:.3f}" if is_zaxis else "")) if labels else None
                 box = d.xyxyxyxy.reshape(-1, 4, 2).squeeze() if is_obb else d.xyxy.squeeze()
                 annotator.box_label(
                     box,
