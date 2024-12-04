@@ -811,7 +811,7 @@ class v8ZAxisLoss(v8DetectionLoss):
         #Z-Axis loss
         weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
         # loss_iou = ((1.0 - iou) * weight).sum() / target_scores_sum
-        loss[3] = (self.mse(pred_z[fg_mask],target_z[fg_mask])).sum()/ fg_mask.sum()
+        loss[3] = (self.mse(pred_z[fg_mask],target_z[fg_mask])*weight).sum()/ (target_scores_sum)
 
         loss[0] *= self.hyp.box  # box gain
         loss[1] *= self.hyp.cls  # cls gain
