@@ -46,7 +46,6 @@ z_stack, masks = np.load("z_stack_0.5.npy"),np.load("masks_0.5.npy")
 resize_factor = 2
 # allbeads_refstack = np.array([resize(ref,(ref.shape[0]//resize_factor,ref.shape[1]//resize_factor)) for ref in allbeads_refstack])
 z_stack = resize(z_stack,(z_stack.shape[0],z_stack.shape[1]//resize_factor))
-print(masks.shape)
 masks = np.array([resize(mask,(mask.shape[0]//resize_factor,mask.shape[1]//resize_factor)) for mask in masks])
 
 #normalize images
@@ -180,7 +179,7 @@ def generateImage(objects, image_size, snr_range, i_range=[1,1],rng=np.random.de
 
     # Set the SNR 
     # image -= image.min()
-    image = image/(max(image.max(),-image.min()))
+    image = image.clip(-1,1)
     noise = rng.normal(0,1,(image_size, image_size))
     # noise = noise/np.var(noise)
     if isinstance(snr_range, list):
@@ -188,6 +187,7 @@ def generateImage(objects, image_size, snr_range, i_range=[1,1],rng=np.random.de
     else:
         snr = snr_range
     image = image + noise/snr
+    image = image/(max(image.max(),-image.min()))
     image= (image+1)/2
     # image = image/(image.max())
 

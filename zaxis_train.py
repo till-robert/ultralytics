@@ -6,7 +6,7 @@ from os import remove
 # except:
 #     pass
 model = YOLO("yolo11n-zaxis.yaml")
-print(model.model.model)
+# print(model.model.model)
 print("loaded")
 results = model.train(data="data_gen/data.yaml", epochs=42, imgsz=512,)
 print("test")

@@ -124,8 +124,7 @@ class DetectionValidator(BaseValidator):
 
     def update_metrics(self, preds, batch):
         """Metrics."""
-        if("z" in batch):
-            preds = [pred[:,:-1] for pred in preds] 
+
         for si, pred in enumerate(preds):
             self.seen += 1
             npr = len(pred)
@@ -180,7 +179,9 @@ class DetectionValidator(BaseValidator):
 
     def get_stats(self):
         """Returns metrics statistics and results dictionary."""
+        # from itertools import chain
         stats = {k: torch.cat(v, 0).cpu().numpy() for k, v in self.stats.items()}  # to numpy
+
         self.nt_per_class = np.bincount(stats["target_cls"].astype(int), minlength=self.nc)
         self.nt_per_image = np.bincount(stats["target_img"].astype(int), minlength=self.nc)
         stats.pop("target_img", None)

@@ -8,7 +8,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-
+from sklearn.metrics import r2_score,mean_squared_error
 from ultralytics.utils import LOGGER, SimpleClass, TryExcept, plt_settings
 
 OKS_SIGMA = (
@@ -1331,8 +1331,10 @@ class ZAxisMetrics(SimpleClass):
         self.box = Metric()
         self.speed = {"preprocess": 0.0, "inference": 0.0, "loss": 0.0, "postprocess": 0.0}
         self.task = "detect"
+        self.z_pairs = None
+        
 
-    def process(self, tp, conf, pred_cls, target_cls):
+    def process(self, tp, conf, pred_cls, target_cls,z_pairs):
         """Process predicted results for object detection and update metrics."""
         results = ap_per_class(
             tp,
@@ -1346,19 +1348,26 @@ class ZAxisMetrics(SimpleClass):
         )[2:]
         self.box.nc = len(self.names)
         self.box.update(results)
+        self.num_iou_levels = z_pairs.shape[1]
+        nan_mask = [~np.any(np.isnan(z_pairs[:,i]),axis=1) for i in range(self.num_iou_levels)]
+        self.z_pairs = [z_pairs[:,i][nan_mask[i]].T for i in range(self.num_iou_levels)] #filter out nans
 
     @property
     def keys(self):
         """Returns a list of keys for accessing specific metrics."""
-        return ["metrics/precision(B)", "metrics/recall(B)", "metrics/mAP50(B)", "metrics/mAP50-95(B)"]
+        return ["metrics/precision(B)", "metrics/recall(B)", "metrics/mAP50(B)", "metrics/mAP50-95(B)","metrics/Z-Axis MSE","metrics/Z-Axis R2"]
 
     def mean_results(self):
         """Calculate mean of detected objects & return precision, recall, mAP50, and mAP50-95."""
-        return self.box.mean_results()
+        results = self.box.mean_results()
 
-    def class_result(self, i):
-        """Return the result of evaluating the performance of an object detection model on a specific class."""
-        return self.box.class_result(i)
+        results.append(self.z_mse[4])
+        results.append(self.z_r2[4])
+        return results
+
+    # def class_result(self, i):
+    #     """Return the result of evaluating the performance of an object detection model on a specific class."""
+    #     return self.box.class_result(i)
 
     @property
     def maps(self):
@@ -1389,3 +1398,13 @@ class ZAxisMetrics(SimpleClass):
     def curves_results(self):
         """Returns dictionary of computed performance metrics and statistics."""
         return self.box.curves_results
+    
+    @property
+    def z_r2(self):
+        """Return Z-Axis R2 for 10 different IoU values"""
+        return [r2_score(*z_pairs) for z_pairs in self.z_pairs]
+    
+    @property
+    def z_mse(self):
+        """Return Z-Axis R2 for 10 different IoU values"""
+        return [mean_squared_error(*z_pairs) for z_pairs in self.z_pairs]

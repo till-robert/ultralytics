@@ -5,9 +5,10 @@ from ultralytics import YOLO
 #     remove("data_gen/Dataset/labels/val.cache")
 # except:
 #     pass
-model = YOLO("runs/detect/train/weights/best.pt")
-print(model.model.model)
+model = YOLO("runs/zaxis/train63/weights/best.pt")
+# print(model.model.model)
 print("loaded")
 # results = model.train(data="data_gen/data.yaml", epochs=100, imgsz=512,)
-results = model.val()
+results = model.val(z_corr=False)
+
 print("test")
