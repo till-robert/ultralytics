@@ -55,10 +55,11 @@ z_stack = z_stack.astype(np.float32)-np.median(z_stack) #cast to float, remove b
 z_stack /= max(np.max(z_stack),-np.min(z_stack)) #scale all entries by global max to lie within (-1,1)
 # allbeads_refstack = allbeads_refstack.astype(np.float32)-np.median(allbeads_refstack) #cast to float, remove background
 # allbeads_refstack /= max(np.max(allbeads_refstack),-np.min(allbeads_refstack)) #scale all entries by global max to lie within (-1,1)
+downsampled_refstack = (np.load("ripples_downsampled.npy")-2e4)/(2**16-1)
 genRipple = lambda z: np.sum(np.array([(masks[i]*z_stack[z,i]) for i in range(len(z_stack[0]))]),axis=0)
-# genRipple = lambda z: allbeads_refstack[z]
+# genRipple = lambda z: downsampled_refstack[z]
 
-def generateImage(objects, image_size, snr_range, i_range=[1,1],rng=np.random.default_rng()):
+def generateImage(objects, image_size, snr_range, i_range=[1,1],rng=np.random.default_rng(), dtype=None):
     image = np.zeros([image_size, image_size])
     bboxes = []
     labels = []
@@ -85,7 +86,8 @@ def generateImage(objects, image_size, snr_range, i_range=[1,1],rng=np.random.de
             i = rng.uniform(i_range[0], i_range[1]) if i_list[0] == 0 else i_list[0]
             # s = int(rng.uniform(s_list[0], s_list[1])) if len(s_list) > 1 else s_list[0] # sigma = rng.uniform(1.5, 3)
             z = int(rng.uniform(z_list[0], z_list[1])) if len(z_list) > 1 else z_list[0]
-            ripple = genRipple(z)
+            ripple2 = genRipple(z)
+            ripple = downsampled_refstack[z]
             # ripple/=np.max(ripple)
             y1,y2,x1,x2 = np.round(y-256/resize_factor).astype(int),np.round(y+256/resize_factor).astype(int),np.round(x-256/resize_factor).astype(int),np.round(x+256/resize_factor).astype(int)
             i1,i2,j1,j2=0,512//resize_factor,0,512//resize_factor
@@ -179,7 +181,6 @@ def generateImage(objects, image_size, snr_range, i_range=[1,1],rng=np.random.de
 
     # Set the SNR 
     # image -= image.min()
-    image = image.clip(-1,1)
     noise = rng.normal(0,1,(image_size, image_size))
     # noise = noise/np.var(noise)
     if isinstance(snr_range, list):
@@ -187,11 +188,70 @@ def generateImage(objects, image_size, snr_range, i_range=[1,1],rng=np.random.de
     else:
         snr = snr_range
     image = image + noise/snr
-    image = image/(max(image.max(),-image.min()))
-    image= (image+1)/2
+    image= image+2e4/(2**16-1)
+    image = image.clip(0,1)
     # image = image/(image.max())
 
     return (bboxes, labels, pars, image) 
+def generateImage2(objects, image_size, snr_range, i_range=[1,1],rng=np.random.default_rng(), dtype=None):
+    if(not all(obj.label == "Ripple" for obj in objects)):
+        return generateImage2(objects, image_size, snr_range, i_range,rng, dtype)
+
+    image = np.zeros([image_size, image_size])
+    bboxes = []
+    labels = []
+    pars = []
+    X, Y = np.meshgrid(np.arange(0, image_size), np.arange(0, image_size))
+    
+    x = np.array([obj.x for obj in objects])
+    y = np.array([obj.y for obj in objects])
+    n = len(objects)
+
+    i_list, s_list,z_list = np.array(objects[0].parameters)
+    i = rng.uniform(i_range[0], i_range[1],n) if i_list[0] == 0 else i_list[0]
+    # s = int(rng.uniform(s_list[0], s_list[1])) if len(s_list) > 1 else s_list[0] # sigma = rng.uniform(1.5, 3)
+    z = np.round(rng.uniform(z_list[0], z_list[1],n)).astype(int) if len(z_list) > 1 else z_list[0]
+    ripple = downsampled_refstack[z]
+    y1,y2,x1,x2 = np.round(y-256/(2*resize_factor)).astype(int),np.round(y+256/(2*resize_factor)).astype(int),np.round(x-256/(2*resize_factor)).astype(int),np.round(x+256/(2*resize_factor)).astype(int)
+    i1,i2,j1,j2=np.ones(n,dtype=int)*0,np.ones(n,dtype=int)*512//(2*resize_factor),np.ones(n,dtype=int)*0,np.ones(n,dtype=int)*512//(2*resize_factor)
+
+    mask = (y1<0)
+    i1[mask] = -y1[mask]
+    y1[mask]=0
+    
+    mask = (y2>image_size)
+    i2[mask] = image_size-y2[mask]
+    y2[mask]=image_size
+
+    mask = (x1<0)
+    j1[mask] = -x1[mask]
+    x1[mask]=0
+
+    mask = (x2>image_size)
+    j2[mask] = image_size-x2[mask]
+    x2[mask]=image_size
+    for i,(y1v,y2v,x1v,x2v,i1v,i2v,j1v,j2v) in enumerate(zip(y1,y2,x1,x2,i1,i2,j1,j2)):
+        image[y1v:y2v,x1v:x2v] += i*ripple[i,i1v:i2v,j1v:j2v] #add patches to image
+
+    bx = by = (np.abs(z-761)*0.21+55)/(2*resize_factor)
+
+    bboxes = np.array([x-bx,y-by,x+bx,y+by]).T
+    labels = (f"Ripple",)*n
+    pars = z
+
+    noise = rng.normal(0,1,(image_size, image_size))
+    # noise = noise/np.var(noise)
+    if isinstance(snr_range, list):
+        snr = rng.uniform(snr_range[0], snr_range[1])             
+    else:
+        snr = snr_range
+    image = image + noise/snr
+    image= image+2e4/(2**16-1)
+    image = image.clip(0,1)
+    # image = image/(image.max())
+
+    return (bboxes, labels, pars, image) 
+
 
 def getRandom(n_list, image_size, distance, offset, label_list, parameters_list,rng):
     '''
@@ -232,3 +292,22 @@ def getRandom(n_list, image_size, distance, offset, label_list, parameters_list,
         all_objects.extend(obj)
 
     return np.array(all_objects)
+def getRandom2(n_list, image_size, distance, offset, label_list, parameters_list,rng):
+    assert len(n_list)==2
+    n = rng.integers(*n_list) #number of points
+    points = np.empty((n,2))
+    objects = []
+    for i in range(n):
+        for _ in range(10000):
+            new_point = rng.random(2)*(image_size - 2*offset) + offset
+            if(i == 0 or np.all(((points[:i]-new_point)**2).sum(axis=1)>=distance**2)):
+                points[i] = new_point
+                random_obj_idx = rng.integers(len(label_list))
+                objects.append(Object(*new_point,label_list[random_obj_idx],*parameters_list[random_obj_idx]))
+                break
+    return objects
+    
+    
+    
+            
+        
