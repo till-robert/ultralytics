@@ -1188,19 +1188,19 @@ class SettingsManager(JSONDict):
             "weights_dir": str(root / "weights"),  # Model weights directory
             "runs_dir": str(root / "runs"),  # Experiment runs directory
             "uuid": hashlib.sha256(str(uuid.getnode()).encode()).hexdigest(),  # SHA-256 anonymized UUID hash
-            "sync": True,  # Enable synchronization
+            "sync": False,  # Enable synchronization
             "api_key": "",  # Ultralytics API Key
             "openai_api_key": "",  # OpenAI API Key
-            "clearml": True,  # ClearML integration
-            "comet": True,  # Comet integration
-            "dvc": True,  # DVC integration
-            "hub": True,  # Ultralytics HUB integration
-            "mlflow": True,  # MLflow integration
-            "neptune": True,  # Neptune integration
-            "raytune": True,  # Ray Tune integration
-            "tensorboard": True,  # TensorBoard logging
+            "clearml": False,  # ClearML integration
+            "comet": False,  # Comet integration
+            "dvc": False,  # DVC integration
+            "hub": False,  # Ultralytics HUB integration
+            "mlflow": False,  # MLflow integration
+            "neptune": False,  # Neptune integration
+            "raytune": False,  # Ray Tune integration
+            "tensorboard": False,  # TensorBoard logging
             "wandb": False,  # Weights & Biases logging
-            "vscode_msg": True,  # VSCode messaging
+            "vscode_msg": False,  # VSCode messaging
         }
 
         self.help_msg = (

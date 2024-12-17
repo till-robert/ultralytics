@@ -195,13 +195,7 @@ class Events:
             "session_id": round(random.random() * 1e15),
             "engagement_time_msec": 1000,
         }
-        self.enabled = (
-            SETTINGS["sync"]
-            and RANK in {-1, 0}
-            and not TESTS_RUNNING
-            and ONLINE
-            and (IS_PIP_PACKAGE or get_git_origin_url() == "https://github.com/ultralytics/ultralytics.git")
-        )
+        self.enabled = False
 
     def __call__(self, cfg):
         """
