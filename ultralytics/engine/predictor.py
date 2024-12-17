@@ -123,14 +123,17 @@ class BasePredictor:
         not_tensor = not isinstance(im, torch.Tensor)
         if not_tensor:
             im = np.stack(self.pre_transform(im))
-            im = im[..., ::-1].transpose((0, 3, 1, 2))  # BGR to RGB, BHWC to BCHW, (n, 3, h, w)
+            if len(im.shape)==4 : im = im[..., ::-1].transpose((0, 3, 1, 2))  # BGR to RGB, BHWC to BCHW, (n, 3, h, w)
+            if len(im.shape)==3 : im = im[:,None,...] #add channel axis if greyscale
+            
             im = np.ascontiguousarray(im)  # contiguous
             im = torch.from_numpy(im)
-
+        is_16bit = im.dtype == torch.uint16
         im = im.to(self.device)
         im = im.half() if self.model.fp16 else im.float()  # uint8 to fp16/32
         if not_tensor:
-            im /= 255  # 0 - 255 to 0.0 - 1.0
+            if is_16bit : im /= 2**16-1
+            else: im /= 255  # 0 - 255 to 0.0 - 1.0
         return im
 
     def inference(self, im, *args, **kwargs):
@@ -223,7 +226,7 @@ class BasePredictor:
             self.setup_model(model)
 
         with self._lock:  # for thread-safe inference
-            # Setup source every time predict is called
+            # Setup source every time predict is called         
             self.setup_source(source if source is not None else self.args.source)
 
             # Check if save_dir/ label file exists
@@ -232,7 +235,7 @@ class BasePredictor:
 
             # Warmup model
             if not self.done_warmup:
-                self.model.warmup(imgsz=(1 if self.model.pt or self.model.triton else self.dataset.bs, 3, *self.imgsz))
+                self.model.warmup(imgsz=(1 if self.model.pt or self.model.triton else self.dataset.bs, 1 if self.args.task == "zaxis" else 3 , *self.imgsz))
                 self.done_warmup = True
 
             self.seen, self.windows, self.batch = 0, [], None

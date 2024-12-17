@@ -405,7 +405,7 @@ class OBBModel(DetectionModel):
 class ZAxisModel(DetectionModel):
     """YOLOv8 Z-Axis model."""
 
-    def __init__(self, cfg="yolov8n-zaxis.yaml", ch=3, nc=None, verbose=True):
+    def __init__(self, cfg="yolov8n-zaxis.yaml", ch=1, nc=None, verbose=True):
         """Initialize YOLOv8 Z-Axis model with given config and parameters."""
         super().__init__(cfg=cfg, ch=ch, nc=nc, verbose=verbose)
 

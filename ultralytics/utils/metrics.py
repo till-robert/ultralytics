@@ -1360,9 +1360,12 @@ class ZAxisMetrics(SimpleClass):
     def mean_results(self):
         """Calculate mean of detected objects & return precision, recall, mAP50, and mAP50-95."""
         results = self.box.mean_results()
-
-        results.append(self.z_mse[4])
-        results.append(self.z_r2[4])
+        if self.z_pairs is not None:
+            results.append(self.z_mse[4])
+            results.append(self.z_r2[4])
+        else:
+            results.append(0)
+            results.append(0)
         return results
 
     # def class_result(self, i):
@@ -1402,9 +1405,9 @@ class ZAxisMetrics(SimpleClass):
     @property
     def z_r2(self):
         """Return Z-Axis R2 for 10 different IoU values"""
-        return [r2_score(*z_pairs) for z_pairs in self.z_pairs]
+        return [r2_score(*z_pairs) for z_pairs in self.z_pairs] if self.z_pairs is not None else None
     
     @property
     def z_mse(self):
         """Return Z-Axis R2 for 10 different IoU values"""
-        return [mean_squared_error(*z_pairs) for z_pairs in self.z_pairs]
+        return [mean_squared_error(*z_pairs) for z_pairs in self.z_pairs] if self.z_pairs is not None else None

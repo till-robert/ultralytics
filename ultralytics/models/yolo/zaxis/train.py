@@ -31,7 +31,7 @@ class ZAxisTrainer(yolo.detect.DetectionTrainer):
 
     def get_model(self, cfg=None, weights=None, verbose=True):
         """Return ZAxisModel initialized with specified config and weights."""
-        model = ZAxisModel(cfg, ch=3, nc=self.data["nc"], verbose=verbose and RANK == -1)
+        model = ZAxisModel(cfg, ch=1, nc=self.data["nc"], verbose=verbose and RANK == -1)
         if weights:
             model.load(weights)
 

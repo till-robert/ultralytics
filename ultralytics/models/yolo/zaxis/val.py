@@ -179,7 +179,7 @@ class ZAxisValidator(DetectionValidator):
                 stat["tp"],gt_pred_matcher = self._process_batch(predn, bbox, cls)
                 matched = (pred_z*gt_pred_matcher).sum(axis=2) #z predictions matched to ground truth for different iou values, unmatched are 0
                 matched[~gt_pred_matcher.sum(axis=2).type(torch.bool)] = torch.nan #set unmatched detections to nan
-                stat["z_pairs"] = torch.cat([gt_z.expand((len(matched),10)).unsqueeze(-1),matched.unsqueeze(-1)],2).transpose(0,1) #paired up z-values
+                stat["z_pairs"] = torch.cat([gt_z.expand((len(matched),-1)).unsqueeze(-1),matched.unsqueeze(-1)],2).transpose(0,1) #paired up z-values
                 #stat["z_pairs"] = [[pair for pair in row if not torch.any(torch.isnan(pair))] for row in z_pairs] #turn into list where nans are excluded
                 # stat["tp_z"] = self.
                 if self.args.plots:
@@ -288,7 +288,12 @@ class ZAxisValidator(DetectionValidator):
     def preprocess(self, batch):
         """Preprocesses batch of images for YOLO training."""
         batch["img"] = batch["img"].to(self.device, non_blocking=True)
-        batch["img"] = (batch["img"].half() if self.args.half else batch["img"].float()) / 255
+        is_16bit = batch["img"].dtype == torch.uint16
+        batch["img"] = (batch["img"].clamp(0,65504.).half() if self.args.half else batch["img"].float()) #unsafe conversion
+        if is_16bit:
+            batch["img"] /= 2**16-1
+        else:
+            batch["img"] /= 255
         for k in ["batch_idx", "cls", "bboxes","z"]:
             batch[k] = batch[k].to(self.device)
 

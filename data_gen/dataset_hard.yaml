@@ -1,0 +1,2 @@
+{names: [b], nc: 1, test: /home/jupyter-till/git/ultralytics/data_gen/Dataset_hard/images/test,
+  train: /home/jupyter-till/git/ultralytics/data_gen/Dataset_hard/images/train, val: /home/jupyter-till/git/ultralytics/data_gen/Dataset_hard/images/val}

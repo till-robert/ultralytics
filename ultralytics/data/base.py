@@ -161,9 +161,11 @@ class BaseDataset(Dataset):
                 except Exception as e:
                     LOGGER.warning(f"{self.prefix}WARNING ⚠️ Removing corrupt *.npy image file {fn} due to: {e}")
                     Path(fn).unlink(missing_ok=True)
-                    im = cv2.imread(f)  # BGR
+                    im = cv2.imread(f,cv2.IMREAD_UNCHANGED)  # BGR
+                    if(len(im.shape)==2): im = im[None,...]
             else:  # read image
-                im = cv2.imread(f)  # BGR
+                im = cv2.imread(f,cv2.IMREAD_UNCHANGED)  # BGR
+                if len(im.shape)==2 : im[None,...]#if greyscale
             if im is None:
                 raise FileNotFoundError(f"Image Not Found {f}")
 
