@@ -208,10 +208,10 @@ def generateImage2(objects, image_size, snr_range, i_range=[1,1],rng=np.random.d
     n = len(objects)
 
     i_list, s_list,z_list = np.array(objects[0].parameters)
-    i = rng.uniform(i_range[0], i_range[1],n) if i_list[0] == 0 else i_list[0]
+    intensity = rng.uniform(i_range[0], i_range[1],n) if i_list[0] == 0 else i_list[0]
     # s = int(rng.uniform(s_list[0], s_list[1])) if len(s_list) > 1 else s_list[0] # sigma = rng.uniform(1.5, 3)
     z = np.round(rng.uniform(z_list[0], z_list[1],n)).astype(int) if len(z_list) > 1 else z_list[0]
-    ripple = downsampled_refstack[z]
+    ripple = downsampled_refstack[z]#/np.sum(downsampled_refstack[z])
     y1,y2,x1,x2 = np.round(y-256/(2*resize_factor)).astype(int),np.round(y+256/(2*resize_factor)).astype(int),np.round(x-256/(2*resize_factor)).astype(int),np.round(x+256/(2*resize_factor)).astype(int)
     i1,i2,j1,j2=np.ones(n,dtype=int)*0,np.ones(n,dtype=int)*512//(2*resize_factor),np.ones(n,dtype=int)*0,np.ones(n,dtype=int)*512//(2*resize_factor)
 
@@ -231,7 +231,7 @@ def generateImage2(objects, image_size, snr_range, i_range=[1,1],rng=np.random.d
     j2[mask] = image_size-x2[mask]
     x2[mask]=image_size
     for i,(y1v,y2v,x1v,x2v,i1v,i2v,j1v,j2v) in enumerate(zip(y1,y2,x1,x2,i1,i2,j1,j2)):
-        image[y1v:y2v,x1v:x2v] += i*ripple[i,i1v:i2v,j1v:j2v] #add patches to image
+        image[y1v:y2v,x1v:x2v] += intensity*ripple[i,i1v:i2v,j1v:j2v] #add patches to image
 
     bx = by = (np.abs(z-761)*0.21+55)/(2*resize_factor)
 
@@ -239,17 +239,25 @@ def generateImage2(objects, image_size, snr_range, i_range=[1,1],rng=np.random.d
     labels = (f"Ripple",)*n
     pars = z
 
-    noise = rng.normal(0,1,(image_size, image_size))
-    # noise = noise/np.var(noise)
+    signal_power = np.mean(image**2)
+    
+    # Calculate noise power from the desired SNR
     if isinstance(snr_range, list):
         snr = rng.uniform(snr_range[0], snr_range[1])             
     else:
         snr = snr_range
-    image = image + noise/snr
-    image= image+2e4/(2**16-1)
+    noise_power = signal_power / snr
+    
+    # Calculate the standard deviation of the noise
+    noise_std = np.sqrt(noise_power)
+    
+    # Generate Gaussian noise
+    noise = np.random.normal(0, noise_std, image.shape)
+    image = image + noise
+    image = image+(2e4/(2**16-1))
     image = image.clip(0,1)
-    # image = image/(image.max())
 
+    # print(intensity)
     return (bboxes, labels, pars, image) 
 
 
