@@ -26,7 +26,7 @@ class ZAxisTrainer(yolo.detect.DetectionTrainer):
         if overrides is None:
             overrides = {}
         overrides["task"] = "zaxis"
-        overrides["augment"] = False
+        # overrides["augment"] = False
         super().__init__(cfg, overrides, _callbacks)
 
     def get_model(self, cfg=None, weights=None, verbose=True):

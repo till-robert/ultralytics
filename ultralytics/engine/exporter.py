@@ -382,7 +382,7 @@ class Exporter:
             data=data,
             task=self.model.task,
             imgsz=self.imgsz[0],
-            augment=False,
+            augment=self.args.augment,
             batch_size=batch,
         )
         n = len(dataset)

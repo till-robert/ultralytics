@@ -26,6 +26,7 @@ class ZAxisPredictor(DetectionPredictor):
         """Initializes OBBPredictor with optional model and data configuration overrides."""
         super().__init__(cfg, overrides, _callbacks)
         self.args.task = "zaxis"
+        overrides["augment"] = False
 
     def postprocess(self, preds, img, orig_imgs):
         """Post-processes predictions and returns a list of Results objects."""
